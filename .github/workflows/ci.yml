@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  style:
+    name: MISS_HIT style and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: pip install miss_hit==0.9.44
+      - run: mh_style src tests examples
+      - run: mh_lint src tests examples
+      - run: mh_metric --ci src tests examples
+
+  octave:
+    name: Tests on GNU Octave 11
+    runs-on: ubuntu-latest
+    container: gnuoctave/octave:11.3.0
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run the test suite
+        run: octave-cli --no-gui --eval "cd tests; run_tests"
+      - name: Run the convergence demo
+        run: octave-cli --no-gui examples/power_function_demo.m
+
+  matlab:
+    name: Tests on MATLAB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: matlab-actions/setup-matlab@v3
+      - name: Run the test suite
+        uses: matlab-actions/run-command@v3
+        with:
+          command: cd tests; run_tests
+      - name: Run the convergence demo
+        uses: matlab-actions/run-command@v3
+        with:
+          command: run('examples/power_function_demo.m')
